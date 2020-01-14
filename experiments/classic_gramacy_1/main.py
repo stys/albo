@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+import numpy as np
+
 import torch
 from torch import Tensor
 from torch.quasirandom import SobolEngine
@@ -114,25 +116,31 @@ def fit_augmented_objective(model, augmented_objective: AugmentedLagrangianMCObj
 
 
 def main():
-    x, y = generate_initial_data()
     function = GramacyTestFunction()
-    for i in range(50):
-        mll, model = initialize_model(x, y)
-        fit_gpytorch_model(mll)
 
-        augmented_objective = ClassicAugmentedLagrangianMCObjective(
-            objective=lambda y: y[..., 0],
-            constraints=[
-                lambda y: y[..., 1],
-                lambda y: y[..., 2]
-            ]
-        )
+    for j in range(25):
 
-        x_new = fit_augmented_objective(model, augmented_objective, x, y)
-        y_new = function(x_new)
+        x, y = generate_initial_data()
+        for i in range(50):
+            mll, model = initialize_model(x, y)
+            fit_gpytorch_model(mll)
 
-        x = torch.cat([x, x_new], dim=0)
-        y = torch.cat([y, y_new], dim=0)
+            augmented_objective = ClassicAugmentedLagrangianMCObjective(
+                objective=lambda y: y[..., 0],
+                constraints=[
+                    lambda y: y[..., 1],
+                    lambda y: y[..., 2]
+                ]
+            )
+
+            x_new = fit_augmented_objective(model, augmented_objective, x, y)
+            y_new = function(x_new)
+
+            x = torch.cat([x, x_new], dim=0)
+            y = torch.cat([y, y_new], dim=0)
+
+        np.save(f'results/x_{j}.bin', x)
+        np.save(f'results/y_{j}.bin', y)
 
 if __name__ == '__main__':
     main()
