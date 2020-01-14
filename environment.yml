@@ -1,0 +1,10 @@
+name: albo
+channels:
+    - pytorch
+    - gpytorch
+dependencies:
+    - python=3.7
+    - botorch==0.2.0
+    - jupyter
+    - nb_conda
+    - pytest
