@@ -29,7 +29,7 @@ class GramacyTestFunction(SyntheticTestFunction):
     """
 
     dim = 2
-    _bounds = [(0.0, 1.0), (0.0, 1.0)]
+    _bounds = [[0.0, 0.0], [1.0, 1.0]]
     _optimal_value = 5.9979e-01
     _optimizers = [(0.1951294, 0.4046587)]
 
@@ -62,7 +62,7 @@ class GardnerTestFunction(SyntheticTestFunction):
     """
 
     dim = 2
-    _bounds = [(0.0, 6.0), (0.0, 6.0)]
+    _bounds = [[0.0, 0.0], [6.0, 6.0]]
     _optimizers = [(0.0, 0.0)] # XXX
 
     def __init__(self, noise_std: Optional[float] = None) -> None:

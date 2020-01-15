@@ -59,7 +59,7 @@ class ClassicAugmentedLagrangianMCObjective(AugmentedLagrangianMCObjective):
         self,
         objective: Callable[[Tensor], Tensor],
         constraints: List[Callable[[Tensor], Tensor]],
-        r: float = 0.1,
+        r: float = 100.0,
         mults: Tensor = None
     ) -> None:
         super(ClassicAugmentedLagrangianMCObjective, self).__init__()
