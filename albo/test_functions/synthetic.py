@@ -3,6 +3,8 @@
 from math import pi
 from typing import Optional
 
+import numpy as np
+
 import torch
 from torch import Tensor
 
@@ -29,6 +31,7 @@ class GramacyTestFunction(SyntheticTestFunction):
     """
 
     dim = 2
+    out_dim = 3
     _bounds = [[0.0, 0.0], [1.0, 1.0]]
     _optimal_value = 5.9979e-01
     _optimizers = [(0.1951294, 0.4046587)]
@@ -62,6 +65,7 @@ class GardnerTestFunction(SyntheticTestFunction):
     """
 
     dim = 2
+    out_dim = 2
     _bounds = [[0.0, 0.0], [6.0, 6.0]]
     _optimizers = [(0.0, 0.0)] # XXX
 

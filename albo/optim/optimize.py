@@ -130,11 +130,10 @@ class AlboOptimizer(object):
             model_list.load_state_dict(state_dict)
         return mll, model_list
 
-    def optimize(self, niter: int, init_samples: int = 10, al_iter: int = 10, seed=None):
+    def optimize(self, niter: int, init_samples: int = 10, al_iter: int = 10, seed=None, verbose=False):
         """ Closed loop optimization
         """
-
-        mults = torch.zeros((init_samples + niter, self.bounds.shape[0] - 1))
+        mults = torch.zeros((init_samples + niter, self.objective.mults.shape[0]))
         idx_best = np.zeros((init_samples + niter), dtype=int)
         i_best = -1
         f_best = np.inf
@@ -184,17 +183,18 @@ class AlboOptimizer(object):
                 i_best = i
                 f_best = y_next[0, 0]
             idx_best[i] = i_best
-            mults[i, :] = self.objective.mults
+            mults[i, :] = self.objective.mults.T
 
-            print(
-                'Iter: ', i,
-                'x:', x_next.numpy(),
-                'y: ', y_next.numpy(),
-                'mults: ', mults[i].detach().numpy(),
-                'best iter: ', i_best,
-                'best x:', x[i_best].numpy(),
-                'best y:', y[i_best].numpy()
-            )
+            if verbose:
+                print(
+                    'Iter: ', i,
+                    'x:', x_next.numpy(),
+                    'y: ', y_next.numpy(),
+                    'mults: ', mults[i].detach().numpy(),
+                    'best iter: ', i_best,
+                    'best x:', x[i_best].numpy(),
+                    'best y:', y[i_best].numpy()
+                )
 
         trace = dict(x=x, y=y, idx_best=idx_best, mults=mults)
 
