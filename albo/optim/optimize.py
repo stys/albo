@@ -110,6 +110,7 @@ class AlboOptimizer(object):
         self.sampler = sampler
         self.bounds = bounds
         self.min_noise = min_noise
+        self.model = None
 
     def generate_initial_data(self, nsamples=10, seed=None):
         x_train = draw_sobol_samples(self.bounds, n=1, q=nsamples, seed=seed)[0]
@@ -130,7 +131,14 @@ class AlboOptimizer(object):
             model_list.load_state_dict(state_dict)
         return mll, model_list
 
-    def optimize(self, niter: int, init_samples: int = 10, al_iter: int = 10, seed=None, verbose=False):
+    def optimize(
+            self,
+            niter: int,
+            init_samples: int = 10,
+            al_iter: int = 10,
+            seed: bool = None,
+            verbose: bool = False
+    ):
         """ Closed loop optimization
         """
         mults = torch.zeros((init_samples + niter, self.objective.mults.shape[0]))
@@ -143,7 +151,7 @@ class AlboOptimizer(object):
 
         # update trace
         for i, y_next in enumerate(y):
-            if torch.prod(y_next[1:] < 0) and y_next[0] < f_best:
+            if torch.prod(y_next[1:] < 0.0) and y_next[0] < f_best:
                 i_best = i
                 f_best = y_next[0]
             idx_best[i] = i_best
@@ -153,12 +161,13 @@ class AlboOptimizer(object):
             i = i_ + init_samples
 
             # fit GPs
-            mll, model = self.initialize_model(x, y)
+            state_dict = self.model.state_dict() if self.model is not None else None
+            mll, self.model = self.initialize_model(x, y)
             fit_gpytorch_model(mll)
 
             # inner loop
             _, al_best = optimize_al_inner(
-                model=model,
+                model=self.model,
                 objective=self.objective,
                 sampler=self.sampler,
                 bounds=self.bounds,
@@ -167,7 +176,7 @@ class AlboOptimizer(object):
 
             # optimize EI
             x_next, ei = optimize_al_ei(
-                model=model,
+                model=self.model,
                 objective=self.objective,
                 sampler=self.sampler,
                 best_f=al_best,
@@ -179,7 +188,7 @@ class AlboOptimizer(object):
             y = torch.cat([y, y_next], dim=0)
 
             # update trace
-            if torch.prod(y_next[0, 1:] < 0) and y_next[0, 0] < f_best:
+            if torch.prod(y_next[0, 1:] < 0.0) and y_next[0, 0] < f_best:
                 i_best = i
                 f_best = y_next[0, 0]
             idx_best[i] = i_best
@@ -202,3 +211,6 @@ class AlboOptimizer(object):
             return x[i_best], y[i_best], trace
         else:
             return None, None, trace
+
+
+

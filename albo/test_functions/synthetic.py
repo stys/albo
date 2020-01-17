@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from botorch.test_functions import SyntheticTestFunction
+from botorch.test_functions import SyntheticTestFunction, Hartmann
 
 
 class GramacyTestFunction(SyntheticTestFunction):
@@ -76,6 +76,44 @@ class GardnerTestFunction(SyntheticTestFunction):
         x1 = X[..., 0]
         x2 = X[..., 1]
         f = torch.sin(x1) + x2
-        c1 = torch.sin(x1) * torch.sin(x2) + 0.95
-        return torch.stack([f, c1], dim=-1)
+        c = torch.sin(x1) * torch.sin(x2) + 0.95
+        return torch.stack([f, c], dim=-1)
 
+
+class PichenyTestFunction(SyntheticTestFunction):
+    r""" Constrained Hartman4
+    """
+
+    dim = 4
+    out_dim = 2
+    _bounds = [[0.0] * 4, [1.0] * 4]
+    _optimizers = [(0.0, 0.0, 0.0, 0.0)] # XXX
+
+    def __init__(self, noise_std: Optional[float] = None) -> None:
+        super(PichenyTestFunction, self).__init__(noise_std=noise_std, negate=False)
+        self.hartman4 = Hartmann(dim=4, noise_std=noise_std, negate=True)
+
+    def evaluate_true(self, X: Tensor) -> Tensor:
+        f = torch.sum(X, dim=-1)
+        c = (self.hartman4(X))
+        return torch.stack([f, c], dim=-1)
+
+
+class Hartmann6Constrained(SyntheticTestFunction):
+    """ Sample problem from BoTorch tutorial
+    https://botorch.org/tutorials/closed_loop_botorch_only
+    """
+
+    dim = 6
+    out_dim = 2
+    _bounds = [[0.0] * 6, [1.0] * 6]
+    _optimizers = None
+
+    def __init__(self, noise_std: Optional[float] = None) -> None:
+        super(Hartmann6Constrained, self).__init__(noise_std=noise_std, negate=False)
+        self.hartmann6 = Hartmann(dim=6, noise_std=noise_std, negate=False)
+
+    def evaluate_true(self, X: Tensor) -> Tensor:
+        f = self.hartmann6(X)
+        c = torch.sum(X, dim=-1) - 2.0
+        return torch.stack([f, c], dim=-1)

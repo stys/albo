@@ -89,3 +89,50 @@ class ClassicAugmentedLagrangianMCObjective(AugmentedLagrangianMCObjective):
     @staticmethod
     def grad_penalty(t: Tensor, m: Tensor, r: float) -> Tensor:
         return torch.max(torch.zeros_like(t, dtype=float), m + r * t)
+
+
+class SmoothAugmentedLagrangianMCObjective(AugmentedLagrangianMCObjective):
+    r""" Don't have a proper reference for this
+
+    https://www.youtube.com/watch?v=POPYQLG6n00
+    https://www.youtube.com/watch?v=3MrlbUoO1y4
+    """
+
+    def __init__(
+        self,
+        objective: Callable[[Tensor], Tensor],
+        constraints: List[Callable[[Tensor], Tensor]],
+        r: float = 100.0,
+        mults: Tensor = None
+    ) -> None:
+        super(SmoothAugmentedLagrangianMCObjective, self).__init__()
+        self.objective = objective
+        self.constraints = constraints
+        self.r = r
+
+        if mults is None:
+            mults = torch.ones((len(constraints), 1), dtype=float)
+        self.register_buffer('mults', mults)
+
+    def forward(self, samples: Tensor) -> Tensor:
+        obj = self.objective(samples)
+        penalty = torch.zeros_like(obj)
+        for i, constraint in enumerate(self.constraints):
+            penalty += self.penalty(constraint(samples), self.mults[i], self.r)
+        return - (obj + penalty)
+
+    def update_mults(self, samples: Tensor) -> None:
+        for i, constraint in enumerate(self.constraints):
+            self.mults[i] = max(1.e-18, self.grad_penalty(constraint(samples), self.mults[i], self.r).mean())
+
+    def penalty(self, t: Tensor, m: Tensor, r: float) -> Tensor:
+        x = r * t
+        y = x * x * 0.5 + x
+        z = - torch.log(-2.0 * torch.min(torch.full_like(x, -0.5), x)) / 4.0 - 3. / 8.
+        return m * torch.where(x > -0.5, y, z) / r
+
+    def grad_penalty(self, t: Tensor, m: Tensor, r: float) -> Tensor:
+        x = r * t
+        y = x + 1
+        z = - 0.25 / x
+        return m * torch.where(x > -0.5, y, z)
