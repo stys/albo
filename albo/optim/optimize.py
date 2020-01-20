@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from typing import List, Tuple, Callable
+from typing import Optional, List, Tuple, Callable, TextIO
 
 import numpy as np
 
@@ -26,7 +26,8 @@ def optimize_al_inner(
     sampler: MCSampler,
     bounds: Tensor,
     niter: int = 10,
-    nprint: int = 0
+    nprint: int = 0,
+    print_file: TextIO = None
 ) -> (Tensor, Tensor):
     """ Inner loop Augmented Lagrangian iterations
     """
@@ -37,8 +38,10 @@ def optimize_al_inner(
         objective=objective
     )
 
+    trace = list()
+
     for i in range(niter):
-        x, f = optimize_acqf(
+        x, L = optimize_acqf(
             acq_function=acqfn,
             bounds=bounds,
             q=1,
@@ -49,21 +52,28 @@ def optimize_al_inner(
         samples = sampler(model.posterior(x))
         objective.update_mults(samples)
 
-        if nprint > 0 and i % nprint == 0:
-            x_ = x.detach().numpy()[0]
-            f_ = f.detach().numpy()[0]
-            mean_ = model.posterior(x).mean.detach().numpy()[0]
-            mults_ = objective.mults.detach().numpy()
+        x_ = x.detach().numpy()[0]
+        L_ = L.detach().numpy()
+        mean_ = model.posterior(x).mean.detach().numpy()[0]
+        mults_ = objective.mults.T.detach().numpy()[0]
 
+        trace.append(dict(
+            x=x_,
+            mults=mults_,
+            L=L_
+        ))
+
+        if nprint > 0 and i % nprint == 0:
             print(
-                'Iter {:d}'.format(i),
-                'X {x}'.format(x=["{:6.4f}".format(val) for val in x_]),
-                'AL {:6.4f}'.format(f_),
-                'Means {m}'.format(m=["{:6.4f}".format(val) for val in mean_]),
-                'Mults {m}'.format(m=["{:6.4f}".format(val) for val in mults_])
+                'Iter inner:', i,
+                'x:', x.numpy(),
+                'y (mean):', mean_,
+                'al:', L_,
+                'mults:', mults_,
+                file=print_file
             )
 
-    return x, f
+    return x, L, trace
 
 
 def optimize_al_ei(
@@ -111,6 +121,7 @@ class AlboOptimizer(object):
         self.bounds = bounds
         self.min_noise = min_noise
         self.model = None
+        self.trace = None
 
     def generate_initial_data(self, nsamples=10, seed=None):
         x_train = draw_sobol_samples(self.bounds, n=1, q=nsamples, seed=seed)[0]
@@ -132,22 +143,26 @@ class AlboOptimizer(object):
         return mll, model_list
 
     def optimize(
-            self,
-            niter: int,
-            init_samples: int = 10,
-            al_iter: int = 10,
-            seed: bool = None,
-            verbose: bool = False
+        self,
+        niter: int,
+        init_samples: int = 10,
+        al_iter: int = 10,
+        seed: Optional[int] = None,
+        verbose: bool = False,
+        print_file: TextIO = None
     ):
         """ Closed loop optimization
         """
+        x_al = torch.zeros((init_samples + niter, self.bounds.shape[0]))
         mults = torch.zeros((init_samples + niter, self.objective.mults.shape[0]))
+        traces_inner = list()
+
         idx_best = np.zeros((init_samples + niter), dtype=int)
         i_best = -1
         f_best = np.inf
 
         # initial exploration
-        x, y = self.generate_initial_data(nsamples=init_samples)
+        x, y = self.generate_initial_data(nsamples=init_samples, seed=seed)
 
         # update trace
         for i, y_next in enumerate(y):
@@ -155,23 +170,25 @@ class AlboOptimizer(object):
                 i_best = i
                 f_best = y_next[0]
             idx_best[i] = i_best
+            traces_inner.append(None)
 
         # outer loop
         for i_ in range(niter):
             i = i_ + init_samples
 
             # fit GPs
-            state_dict = self.model.state_dict() if self.model is not None else None
             mll, self.model = self.initialize_model(x, y)
             fit_gpytorch_model(mll)
 
             # inner loop
-            _, al_best = optimize_al_inner(
+            x_inner, al, trace_inner = optimize_al_inner(
                 model=self.model,
                 objective=self.objective,
                 sampler=self.sampler,
                 bounds=self.bounds,
-                niter=al_iter
+                niter=al_iter,
+                print_file=print_file,
+                nprint=1 if verbose else 0
             )
 
             # optimize EI
@@ -179,7 +196,7 @@ class AlboOptimizer(object):
                 model=self.model,
                 objective=self.objective,
                 sampler=self.sampler,
-                best_f=al_best,
+                best_f=al,
                 bounds=self.bounds
             )
             y_next = self.blackbox(x_next)
@@ -192,25 +209,32 @@ class AlboOptimizer(object):
                 i_best = i
                 f_best = y_next[0, 0]
             idx_best[i] = i_best
+            x_al[i, :] = x_inner
             mults[i, :] = self.objective.mults.T
+            traces_inner.append(traces_inner)
 
             if verbose:
                 print(
-                    'Iter: ', i,
+                    'Iter outer:', i,
                     'x:', x_next.numpy(),
-                    'y: ', y_next.numpy(),
-                    'mults: ', mults[i].detach().numpy(),
-                    'best iter: ', i_best,
+                    'y:', y_next.numpy(),
+                    'mults:', mults[i].detach().numpy(),
+                    'best iter:', i_best,
                     'best x:', x[i_best].numpy(),
-                    'best y:', y[i_best].numpy()
+                    'best y:', y[i_best].numpy(),
+                    file=print_file
                 )
 
-        trace = dict(x=x, y=y, idx_best=idx_best, mults=mults)
+            self.trace = dict(
+                x=x,
+                y=y,
+                idx_best=idx_best,
+                x_al=x_al,
+                mults=mults,
+                traces_inner=traces_inner
+            )
 
         if i_best >= 0:
-            return x[i_best], y[i_best], trace
+            return x[i_best], y[i_best], self.trace
         else:
-            return None, None, trace
-
-
-
+            return None, None, self.trace

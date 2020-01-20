@@ -8,3 +8,6 @@ dependencies:
     - jupyter
     - nb_conda
     - pytest
+    - pip
+    - pip:
+      - pyhocon
