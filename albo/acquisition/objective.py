@@ -55,6 +55,8 @@ class ClassicAugmentedLagrangianMCObjective(AugmentedLagrangianMCObjective):
     See also Nocedal J., Wright S. J., "Numerical optimization", chapter 17.4
     """
 
+    _default_inital_mult = 0.0
+
     def __init__(
         self,
         objective: Callable[[Tensor], Tensor],
@@ -67,9 +69,12 @@ class ClassicAugmentedLagrangianMCObjective(AugmentedLagrangianMCObjective):
         self.constraints = constraints
         self.r = r
 
-        if mults is None:
-            mults = torch.zeros((len(constraints), 1), dtype=float)
-        self.register_buffer('mults', mults)
+        if mults is not None:
+            self.initial_mults = mults
+        else:
+            self.initial_mults = torch.full((len(constraints), 1), fill_value=self._default_inital_mult, dtype=float)
+
+        self.register_buffer('mults', self.initial_mults.clone())
 
     def forward(self, samples: Tensor) -> Tensor:
         obj = self.objective(samples)
@@ -77,6 +82,12 @@ class ClassicAugmentedLagrangianMCObjective(AugmentedLagrangianMCObjective):
         for i, constraint in enumerate(self.constraints):
             penalty += self.penalty(constraint(samples), self.mults[i], self.r)
         return - (obj + penalty)
+
+    def reset_mults(self, mults=None):
+        if mults is not None:
+            self.mults = mults
+        else:
+            self.mults = self.initial_mults.clone()
 
     def update_mults(self, samples: Tensor) -> None:
         for i, constraint in enumerate(self.constraints):
@@ -98,6 +109,8 @@ class SmoothAugmentedLagrangianMCObjective(AugmentedLagrangianMCObjective):
     https://www.youtube.com/watch?v=3MrlbUoO1y4
     """
 
+    _default_initial_mult = 1.0
+
     def __init__(
         self,
         objective: Callable[[Tensor], Tensor],
@@ -110,9 +123,12 @@ class SmoothAugmentedLagrangianMCObjective(AugmentedLagrangianMCObjective):
         self.constraints = constraints
         self.r = r
 
-        if mults is None:
-            mults = torch.ones((len(constraints), 1), dtype=float)
-        self.register_buffer('mults', mults)
+        if mults is not None:
+            self.initial_mults = mults
+        else:
+            self.initial_mults = torch.full((len(constraints), 1), fill_value=self._default_inital_mult, dtype=float)
+
+        self.register_buffer('mults', self.initial_mults.clone())
 
     def forward(self, samples: Tensor) -> Tensor:
         obj = self.objective(samples)
@@ -120,6 +136,12 @@ class SmoothAugmentedLagrangianMCObjective(AugmentedLagrangianMCObjective):
         for i, constraint in enumerate(self.constraints):
             penalty += self.penalty(constraint(samples), self.mults[i], self.r)
         return - (obj + penalty)
+
+    def reset_mults(self, mults=None):
+        if mults is not None:
+            self.mults = mults
+        else:
+            self.mults = self.initial_mults.clone()
 
     def update_mults(self, samples: Tensor) -> None:
         for i, constraint in enumerate(self.constraints):
@@ -144,6 +166,8 @@ class ExponentialAugmentedLagrangianMCObjective(AugmentedLagrangianMCObjective):
     Iusem1999
     """
 
+    _default_initial_mult = 1.0
+
     def __init__(
         self,
         objective: Callable[[Tensor], Tensor],
@@ -156,9 +180,12 @@ class ExponentialAugmentedLagrangianMCObjective(AugmentedLagrangianMCObjective):
         self.constraints = constraints
         self.r = r
 
-        if mults is None:
-            mults = torch.ones((len(constraints), 1), dtype=float)
-        self.register_buffer('mults', mults)
+        if mults is not None:
+            self.initial_mults = mults
+        else:
+            self.initial_mults = torch.full((len(constraints), 1), fill_value=self._default_inital_mult, dtype=float)
+
+        self.register_buffer('mults', self.initial_mults.clone())
 
     def forward(self, samples: Tensor) -> Tensor:
         obj = self.objective(samples)
@@ -166,6 +193,12 @@ class ExponentialAugmentedLagrangianMCObjective(AugmentedLagrangianMCObjective):
         for i, constraint in enumerate(self.constraints):
             penalty += self.penalty(constraint(samples), self.mults[i], self.r)
         return - (obj + penalty)
+
+    def reset_mults(self, mults=None):
+        if mults is not None:
+            self.mults = mults
+        else:
+            self.mults = self.initial_mults.clone()
 
     def update_mults(self, samples: Tensor) -> None:
         for i, constraint in enumerate(self.constraints):

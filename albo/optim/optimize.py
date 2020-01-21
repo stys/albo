@@ -181,6 +181,8 @@ class AlboOptimizer(object):
             fit_gpytorch_model(mll)
 
             # inner loop
+            self.objective.reset_mults()   # this is very important
+
             x_inner, al, trace_inner = optimize_al_inner(
                 model=self.model,
                 objective=self.objective,

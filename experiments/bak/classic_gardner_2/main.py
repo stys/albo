@@ -28,7 +28,7 @@ def main():
         bounds=Tensor(blackbox._bounds)
     )
 
-    x_best, y_best, trace = optimizer.optimize(niter=50, init_samples=10, al_iter=10)
+    x_best, y_best, trace = optimizer.optimize(niter=50, init_samples=10, al_iter=10, verbose=True)
 
 if __name__ == '__main__':
     main()

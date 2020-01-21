@@ -53,10 +53,7 @@ if __name__ == '__main__':
             work_dir = join_path(task_dir, 'run_%03d' % i)
             makedirs(work_dir, exist_ok=args.force_makedirs)
 
-            print_file_name = join_path(work_dir, 'log.txt')
+            x, y, trace = task.run(print_file=None, verbose=True)
+
             trace_file_name = join_path(work_dir, 'trace')
-
-            with open(print_file_name, 'w') as print_file:
-                x, y, trace = task.run(print_file=print_file, verbose=True)
-
             np.save(trace_file_name, trace)
