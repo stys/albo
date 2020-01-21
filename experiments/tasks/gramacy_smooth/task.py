@@ -5,8 +5,8 @@ from functools import partial
 from torch import Tensor
 from botorch.sampling import SobolQMCNormalSampler
 
-from albo.test_functions.synthetic import GardnerTestFunction
-from albo.acquisition.objective import ClassicAugmentedLagrangianMCObjective
+from albo.test_functions.synthetic import GramacyTestFunction
+from albo.acquisition.objective import SmoothAugmentedLagrangianMCObjective
 from albo.optim.optimize import AlboOptimizer
 
 
@@ -20,10 +20,10 @@ class TaskGenerator(object):
         self.conf = conf
 
     def get_task_runner(self, param, **kw):
-        blackbox = GardnerTestFunction(noise_std=param.noise_std)
+        blackbox = GramacyTestFunction(noise_std=param.noise_std)
         bounds = Tensor(blackbox._bounds)
 
-        objective = ClassicAugmentedLagrangianMCObjective(
+        objective = SmoothAugmentedLagrangianMCObjective(
             objective=lambda y: y[..., 0],
             constraints=list(lambda y, i=j: y[..., i] for j in range(1, blackbox.out_dim)),
             r=param['r']

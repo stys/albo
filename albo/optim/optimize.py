@@ -211,7 +211,7 @@ class AlboOptimizer(object):
             idx_best[i] = i_best
             x_al[i, :] = x_inner
             mults[i, :] = self.objective.mults.T
-            traces_inner.append(traces_inner)
+            traces_inner.append(trace_inner)
 
             if verbose:
                 print(
