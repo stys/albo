@@ -34,6 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--dir', required=True, help='Path to output dir')
     parser.add_argument('--force-makedirs', action='store_true')
     parser.add_argument('--nruns', type=int, default=1, help='Repeat task many times')
+    parser.add_argument('--shift-run-numbers', type=int, default=0, help='Start numbering from given number to prevent overrites')
     args, other = parser.parse_known_args(argv_filtered)
 
     conf = ConfigFactory.parse_file(args.conf)
@@ -48,7 +49,8 @@ if __name__ == '__main__':
         task_dir = join_path(args.dir, task.key)
         makedirs(task_dir, exist_ok=args.force_makedirs)
 
-        for i in range(args.nruns):
+        for i_ in range(args.nruns):
+            i = i_ + args.shift_run_numbers
             logging.info('Running task %s run %d', task.key, i)
             work_dir = join_path(task_dir, 'run_%03d' % i)
             makedirs(work_dir, exist_ok=args.force_makedirs)

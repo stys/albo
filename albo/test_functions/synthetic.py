@@ -3,12 +3,10 @@
 from math import pi
 from typing import Optional
 
-import numpy as np
-
 import torch
 from torch import Tensor
 
-from botorch.test_functions import SyntheticTestFunction, Hartmann
+from botorch.test_functions import SyntheticTestFunction, Hartmann, Branin
 
 
 class GramacyTestFunction(SyntheticTestFunction):
@@ -100,8 +98,9 @@ class PichenyTestFunction(SyntheticTestFunction):
 
 
 class Hartmann6Constrained(SyntheticTestFunction):
-    """ Sample problem from BoTorch tutorial
-    https://botorch.org/tutorials/closed_loop_botorch_only
+    """
+    Letham2019 supplements Problem 2
+    Sample problem from BoTorch tutorial https://botorch.org/tutorials/closed_loop_botorch_only
     """
 
     dim = 6
@@ -115,5 +114,69 @@ class Hartmann6Constrained(SyntheticTestFunction):
 
     def evaluate_true(self, X: Tensor) -> Tensor:
         f = self.hartmann6(X)
-        c = torch.sum(X, dim=-1) - 2.0
+        c = torch.sum(X, dim=-1) - 1.0
         return torch.stack([f, c], dim=-1)
+
+
+class BraninConstrained(SyntheticTestFunction):
+    """
+    Letham2019 supplements Problem 3
+    """
+
+    dim = 2
+    out_dim = 2
+    _bounds = [[-5.0, 0.0], [10.0, 15.0]]
+    _optimizers = None
+
+    def __init__(self, noise_std: Optional[float] = None) -> None:
+        super(BraninConstrained, self).__init__(noise_std=noise_std, negate=False)
+        self.branin = Branin(noise_std=noise_std, negate=False)
+
+    def evaluate_true(self, X: Tensor) -> Tensor:
+        f = self.branin(X) / 100.0
+        c = ((X[..., 0] - 2.5)**2 + (X[..., 1] - 7.5)**2 - 50.0) / 100.0
+        return torch.stack([f, c], dim=-1)
+
+
+class Gardner1(SyntheticTestFunction):
+    """
+    Gardner2014 Simulation 1
+    Letham2019 supplements Problem 4
+    """
+
+    dim = 2
+    out_dim = 2
+    _bounds = [[0.0, 0.0], [6.0, 6.0]]
+    _optimizers = None
+
+    def __init__(self, noise_std: Optional[float] = None) -> None:
+        super(Gardner1, self).__init__(noise_std=noise_std, negate=False)
+
+    def evaluate_true(self, X: Tensor):
+        f = torch.cos(2.0 * X[..., 0]) * torch.cos(X[..., 1]) + torch.sin(X[..., 0])
+        c = torch.cos(X[..., 0]) * torch.cos(X[..., 1]) - torch.sin(X[..., 0]) * torch.sin(X[..., 1]) + 0.5
+        return torch.stack([f, c], dim=-1)
+
+
+class Perrone(SyntheticTestFunction):
+    """
+    Perrone2019 toy problem
+    """
+
+    dim = 2
+    out_dim = 2
+    _bounds = [[-1.0, -1.0], [1.0, 1.0]]
+    _optimizers = None
+    x1 = -0.7
+    y1 = 0.5
+    x2 = 0.5
+    y2 = 0.3
+    x3 = -0.3
+    y3 = -0.3
+
+    def __init__(self, noise_std: Optional[float] = None) -> None:
+        super(Perrone, self).__init__(noise_std=noise_std, negate=False)
+
+    def evaluate_true(self, X: Tensor):
+        f1 = (-0.7 - X[..., 0])**2 / 0.02 + 0.03
+        f2 = ()
