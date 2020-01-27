@@ -7,7 +7,7 @@ from botorch.sampling import SobolQMCNormalSampler
 
 from albo.test_functions.synthetic import GramacyTestFunction
 from albo.acquisition.objective import ClassicAugmentedLagrangianMCObjective
-from albo.optim.optimize import AlboOptimizer
+from albo.optim.optimize import qEiAcqfOptimizer, AlboOptimizer
 
 
 class Task():
@@ -34,9 +34,12 @@ class TaskGenerator(object):
             seed=param.get('seed', None)
         )
 
+        acqfopt = qEiAcqfOptimizer(sampler=sampler)
+
         optimizer = AlboOptimizer(
             blackbox=blackbox,
             objective=objective,
+            acqfopt=acqfopt,
             sampler=sampler,
             bounds=bounds
         )

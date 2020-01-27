@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from abc import abstractmethod
 from typing import Optional, List, Tuple, Callable, TextIO
 
 import numpy as np
@@ -12,7 +13,7 @@ from botorch import fit_gpytorch_model
 from botorch.optim import optimize_acqf
 from botorch.models import SingleTaskGP, ModelListGP
 from botorch.sampling import MCSampler
-from botorch.acquisition import qSimpleRegret, qExpectedImprovement
+from botorch.acquisition import qSimpleRegret, qExpectedImprovement, qMaxValueEntropy, qKnowledgeGradient
 
 from gpytorch.constraints import GreaterThan
 from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
@@ -76,47 +77,98 @@ def optimize_al_inner(
     return x, L, trace
 
 
-def optimize_al_ei(
-    model: ModelListGP,
-    objective: AugmentedLagrangianMCObjective,
-    sampler: MCSampler,
-    best_f: float,
-    bounds: Tensor,
-    num_restarts: int = 10,
-    raw_samples: int = 500,
-    verbose: bool = False
-) -> Tensor:
-    """ Outer loop step: optimization of EI over Augmented Lagrangian objective
-    """
+class AcqfOptimizer(object):
 
-    ei = qExpectedImprovement(
-        model=model,
-        best_f=best_f,
-        sampler=sampler,
-        objective=objective
-    )
+    @abstractmethod
+    def optimize(self, **kwargs):
+        pass
 
-    x, f = optimize_acqf(
-        acq_function=ei,
-        bounds=bounds,
-        q=1,
-        num_restarts=num_restarts,
-        raw_samples=raw_samples
-    )
 
-    return x, f
+class qEiAcqfOptimizer(AcqfOptimizer):
+    def __init__(
+        self,
+        sampler: MCSampler,
+        num_restarts: int = 10,
+        raw_samples: int = 512
+    ) -> None:
+        self.sampler = sampler
+        self.num_restarts = num_restarts
+        self.raw_samples = raw_samples
+
+    def optimize(
+        self,
+        model: ModelListGP,
+        objective: AugmentedLagrangianMCObjective,
+        bounds: Tensor,
+        best_f: float,
+        **other
+    ):
+
+        ei = qExpectedImprovement(
+            model=model,
+            best_f=best_f,
+            sampler=self.sampler,
+            objective=objective
+        )
+
+        x, f = optimize_acqf(
+            acq_function=ei,
+            bounds=bounds,
+            q=1,
+            num_restarts=self.num_restarts,
+            raw_samples=self.raw_samples
+        )
+
+        return x, f
+
+
+class qKgAcqfOptimizer(AcqfOptimizer):
+    def __init__(
+        self,
+        sampler: MCSampler,
+        num_restarts: int = 10,
+        raw_samples: int = 512
+    ) -> None:
+        self.sampler = sampler
+        self.num_restarts = num_restarts
+        self.raw_samples = raw_samples
+
+    def optimize(
+        self,
+        model: ModelListGP,
+        objective: AugmentedLagrangianMCObjective,
+        bounds: Tensor,
+        **other
+    ):
+        kg = qKnowledgeGradient(
+            model=model,
+            inner_sampler=self.sampler,
+            objective=objective
+        )
+
+        x, f = optimize_acqf(
+            acq_function=kg,
+            bounds=bounds,
+            q=1,
+            num_restarts=self.num_restarts,
+            raw_samples=self.raw_samples
+        )
+
+        return x, f
 
 
 class AlboOptimizer(object):
     def __init__(self,
         blackbox: Callable[[Tensor], Tensor],
         objective: AugmentedLagrangianMCObjective,
+        acqfopt: AcqfOptimizer,
         sampler: MCSampler,
         bounds: Tensor,
         min_noise: float = 1.e-5
     ) -> None:
         self.blackbox = blackbox
         self.objective = objective
+        self.acqfopt = acqfopt
         self.sampler = sampler
         self.bounds = bounds
         self.min_noise = min_noise
@@ -193,14 +245,15 @@ class AlboOptimizer(object):
                 nprint=1 if verbose else 0
             )
 
-            # optimize EI
-            x_next, ei = optimize_al_ei(
+            # optimize acquisistion function
+            x_next, acf = self.acqfopt.optimize(
                 model=self.model,
                 objective=self.objective,
                 sampler=self.sampler,
-                best_f=al,
-                bounds=self.bounds
+                bounds=self.bounds,
+                best_f=al
             )
+
             y_next = self.blackbox(x_next)
 
             x = torch.cat([x, x_next], dim=0)
