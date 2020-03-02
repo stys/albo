@@ -30,6 +30,5 @@ def test_classic_augmented_lagrangian_mc_objective():
 
     values = classic_augmented_lagrangian_mc_objective(samples)
     classic_augmented_lagrangian_mc_objective.update_mults(samples)
-    print(classic_augmented_lagrangian_mc_objective.mults)
 
     assert True

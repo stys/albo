@@ -6,6 +6,7 @@ import sys
 import re
 import imp
 import logging
+import traceback
 
 from os import makedirs
 from os.path import join as join_path
@@ -55,7 +56,11 @@ if __name__ == '__main__':
             work_dir = join_path(task_dir, 'run_%03d' % i)
             makedirs(work_dir, exist_ok=args.force_makedirs)
 
-            x, y, trace = task.run(print_file=None, verbose=True)
-
-            trace_file_name = join_path(work_dir, 'trace')
-            np.save(trace_file_name, trace)
+            try:
+                x, y, trace = task.run(print_file=None, verbose=True)
+                trace_file_name = join_path(work_dir, 'trace')
+                np.save(trace_file_name, trace)
+            except:
+                error_file_name = join_path(work_dir, 'error')
+                traceback.print_last(file=error_file_name)
+                traceback.print_last()

@@ -1,0 +1,30 @@
+{
+    "language"        : "PYTHON",
+    "main_file"       : "gardner1",
+    "experiment-name" : "gardner1-example",
+    "likelihood"      : "NOISELESS",
+    "acquisition"     : "PES",
+    "max_finished_jobs" : 45,
+    "variables": {
+        "X": {
+            "type": "FLOAT",
+            "size": 1,
+            "min":  0,
+            "max":  6
+        },
+        "Y": {
+            "type": "FLOAT",
+            "size": 1,
+            "min":  0,
+            "max":  6
+        }
+    },
+    "tasks": {
+        "f" : {
+          "type"        : "OBJECTIVE"
+        },
+        "c" : {
+          "type"        : "CONSTRAINT"
+        }
+    }
+}

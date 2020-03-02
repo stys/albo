@@ -24,6 +24,3 @@ def test_gramacy_test_function():
         ]
     ])
     z = function(x)
-    print(x)
-    print(z.shape)
-    print(z[..., :])

@@ -13,7 +13,7 @@ from botorch import fit_gpytorch_model
 from botorch.optim import optimize_acqf
 from botorch.models import SingleTaskGP, ModelListGP
 from botorch.sampling import MCSampler
-from botorch.acquisition import qSimpleRegret, qExpectedImprovement, qMaxValueEntropy, qKnowledgeGradient
+from botorch.acquisition import qSimpleRegret, qExpectedImprovement
 
 from gpytorch.constraints import GreaterThan
 from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
@@ -47,9 +47,10 @@ def optimize_al_inner(
             bounds=bounds,
             q=1,
             num_restarts=1,
-            raw_samples=500
+            raw_samples=512,
         )
 
+        x = x.unsqueeze(0)
         samples = sampler(model.posterior(x))
         objective.update_mults(samples)
 
@@ -122,41 +123,6 @@ class qEiAcqfOptimizer(AcqfOptimizer):
         return x, f
 
 
-class qKgAcqfOptimizer(AcqfOptimizer):
-    def __init__(
-        self,
-        sampler: MCSampler,
-        num_restarts: int = 10,
-        raw_samples: int = 512
-    ) -> None:
-        self.sampler = sampler
-        self.num_restarts = num_restarts
-        self.raw_samples = raw_samples
-
-    def optimize(
-        self,
-        model: ModelListGP,
-        objective: AugmentedLagrangianMCObjective,
-        bounds: Tensor,
-        **other
-    ):
-        kg = qKnowledgeGradient(
-            model=model,
-            inner_sampler=self.sampler,
-            objective=objective
-        )
-
-        x, f = optimize_acqf(
-            acq_function=kg,
-            bounds=bounds,
-            q=1,
-            num_restarts=self.num_restarts,
-            raw_samples=self.raw_samples
-        )
-
-        return x, f
-
-
 class AlboOptimizer(object):
     def __init__(self,
         blackbox: Callable[[Tensor], Tensor],
@@ -166,6 +132,18 @@ class AlboOptimizer(object):
         bounds: Tensor,
         min_noise: float = 1.e-5
     ) -> None:
+        r""" Closed loop optimization.
+
+        Args:
+            blackbox:
+            objective:
+            acqfopt: pluggable acquisition function optimizer
+            sampler:
+            bounds: A `2 x d` tensor specifying box constraints on `d`-dimensional space,
+                where bounds[0, :] and bounds[1, :] correspond to lower and upper bounds
+
+        """
+
         self.blackbox = blackbox
         self.objective = objective
         self.acqfopt = acqfopt
@@ -176,14 +154,14 @@ class AlboOptimizer(object):
         self.trace = None
 
     def generate_initial_data(self, nsamples=10, seed=None):
-        x_train = draw_sobol_samples(self.bounds, n=1, q=nsamples, seed=seed)[0]
+        x_train = draw_sobol_samples(self.bounds, n=1, q=nsamples, seed=seed).squeeze()
         y_train = self.blackbox(x_train)
         return x_train, y_train
 
     def initialize_model(self, x_train, y_train, state_dict=None):
-        n = y_train.shape[-1]
+        m = y_train.shape[-1]
         gp_models = []
-        for i in range(n):
+        for i in range(m):
             y = y_train[..., i].unsqueeze(-1)
             gp_model = SingleTaskGP(train_X=x_train, train_Y=y)
             gp_model.likelihood.noise_covar.register_constraint("raw_noise", GreaterThan(self.min_noise))
@@ -203,9 +181,8 @@ class AlboOptimizer(object):
         verbose: bool = False,
         print_file: TextIO = None
     ):
-        """ Closed loop optimization
-        """
-        x_al = torch.zeros((init_samples + niter, self.bounds.shape[0]))
+
+        x_al = torch.zeros((init_samples + niter, self.bounds.shape[-1]))
         mults = torch.zeros((init_samples + niter, self.objective.mults.shape[0]))
         traces_inner = list()
 
@@ -245,13 +222,17 @@ class AlboOptimizer(object):
                 nprint=1 if verbose else 0
             )
 
-            # optimize acquisistion function
+            # identify best augmented lagrangian value
+            al_best = self.objective(y).max()
+            print(al_best.detach().numpy())
+
+            # optimize acquisition function
             x_next, acf = self.acqfopt.optimize(
                 model=self.model,
                 objective=self.objective,
                 sampler=self.sampler,
                 bounds=self.bounds,
-                best_f=al
+                best_f=al_best
             )
 
             y_next = self.blackbox(x_next)
@@ -293,3 +274,4 @@ class AlboOptimizer(object):
             return x[i_best], y[i_best], self.trace
         else:
             return None, None, self.trace
+
