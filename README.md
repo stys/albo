@@ -1,7 +1,9 @@
 ALBO is an experimental application of Augmented Lagrangians for constrained Bayesian Optimization implemented in BoTorch
 
+Toy problem from Gramacy et al. 2016
 ![Test problem from Gramacy2016](./sample_gramacy.png)
 
+Simulation 1 from Gardner et al. 2014
 ![Test problem from Gardner2014](./sample_gardner1.png)
 
 ## Algorithm
