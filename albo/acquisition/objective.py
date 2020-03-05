@@ -81,7 +81,7 @@ class ClassicAugmentedLagrangianMCObjective(AugmentedLagrangianMCObjective):
         penalty = torch.zeros_like(obj)
         for i, constraint in enumerate(self.constraints):
             penalty += self.penalty(constraint(samples), self.mults[i], self.r)
-        return - (obj + penalty)
+        return obj - penalty
 
     def reset_mults(self, mults=None):
         if mults is not None:

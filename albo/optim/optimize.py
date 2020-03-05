@@ -47,7 +47,7 @@ def optimize_al_inner(
             bounds=bounds,
             q=1,
             num_restarts=1,
-            raw_samples=512,
+            raw_samples=512
         )
 
         x = x.unsqueeze(0)
@@ -57,10 +57,11 @@ def optimize_al_inner(
         x_ = x.detach().numpy()[0]
         L_ = L.detach().numpy()
         mean_ = model.posterior(x).mean.detach().numpy()[0]
-        mults_ = objective.mults.T.detach().numpy()[0]
+        mults_ = objective.mults.T.detach().clone().numpy()[0]
 
         trace.append(dict(
             x=x_,
+            y=mean_,
             mults=mults_,
             L=L_
         ))
