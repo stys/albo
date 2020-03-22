@@ -27,14 +27,14 @@ class AlboMCObjective(MCAcquisitionObjective):
     Implementations must define a penalty function and an update rule for multipliers.
     """
 
-    _default_inital_mult = 1.e-8
+    _default_mult = 1.e-8
 
     def __init__(
         self,
         objective: Callable[[Tensor], Tensor],
         constraints: List[Callable[[Tensor], Tensor]],
-        rate: float = 1.0,
-        init_mults: Optional[Tensor] = None
+        penalty_rate: float = 1.0,
+        lagrange_mults: Optional[Tensor] = None
     ) -> None:
         r"""Feasibility-weighted objective.
 
@@ -46,22 +46,20 @@ class AlboMCObjective(MCAcquisitionObjective):
                 `sample_shape x batch-shape x q x m` to a Tensor of dimension
                 `sample_shape x batch-shape x q`, where negative values imply
                 feasibility.
-            rate: A rate parameter for penalty function
-            init_mults: A `1 x len(constraints)`-dim Tensor with initial values
-                of Lagrange multipliers
+            penalty_rate: A rate parameter for penalty function
+            lagrange_mults: A `1 x len(constraints)`-dim Tensor values of Lagrange multipliers
         """
 
         super(AlboMCObjective, self).__init__()
         self.objective = objective
         self.constraints = constraints
-        self.rate = rate
+        self.penalty_rate = penalty_rate
 
-        if init_mults is not None:
-            self.init_mults = init_mults
+        if lagrange_mults is not None:
+            self.register_buffer("lagrange_mults", lagrange_mults.clone())
         else:
-            self.init_mults = torch.full((len(constraints), 1), fill_value=self._default_inital_mult, dtype=float)
-
-        self.register_buffer('mults', self.init_mults.clone())
+            default_lagrange_mults = torch.full((len(constraints), 1), fill_value=self._default_mult, dtype=float)
+            self.register_buffer("lagrange_mults", default_lagrange_mults)
 
     def forward(self, samples: Tensor) -> Tensor:
         r"""Evaluate augmented objective on the samples
@@ -78,29 +76,25 @@ class AlboMCObjective(MCAcquisitionObjective):
         obj = self.objective(samples)
         penalty = torch.zeros_like(obj)
         for i, constraint in enumerate(self.constraints):
-            penalty += self.penalty(constraint(samples), self.mults[i], self.rate)
+            penalty += self.penalty(constraint(samples), self.lagrange_mults[i], self.penalty_rate)
         return obj - penalty
 
-    def reset_mults(self, mults: Optional[Tensor] = None) -> None:
-        r"""Reset Lagrange multipliers to default values or to a given value
+    def get_mults_update(self, samples: Tensor) -> None:
+        """Update rule for multipliers
 
         Args:
-            mults: A `1 x len(constraints)`-dim Tensor with values
-                of Lagrange multipliers
-
-        """
-        if mults is not None:
-            self.mults = mults
-        else:
-            self.mults = self.init_mults.clone()
-
-    def update_mults(self, samples: Tensor) -> None:
-        r"""
+            samples: `sample_shape x batch-shape x q x m`-dim Tensor of samples
         """
 
-        def update_mults(self, samples: Tensor) -> None:
-            for i, constraint in enumerate(self.constraints):
-                self.mults[i] = self.grad_penalty(constraint(samples), self.mults[i], self.r).mean()
+        means = torch.zeros_like(self.lagrange_mults)
+        stds = torch.zeros_like(self.lagrange_mults)
+
+        for i, constraint in enumerate(self.constraints):
+            z = self.grad_penalty(constraint(samples), self.lagrange_mults[i], self.penalty_rate)
+            means[i] = z.mean()
+            stds[i] = z.std()
+
+        return means, stds
 
     @abstractmethod
     def penalty(self, t: Tensor, m: float, r: float) -> Tensor:
