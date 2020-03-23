@@ -165,7 +165,8 @@ class AlboAcquisitionFactory(object):
 
         x_trace = torch.zeros_like(self.bounds[0].unsqueeze(0))
         mults_trace = mults.unsqueeze(0)
-        output_trace = torch.zeros((1, self.model.num_outputs), dtype=float)
+        output_means = torch.zeros((1, self.model.num_outputs), dtype=float)
+        output_variances = torch.zeros((1, self.model.num_outputs), dtype=float)
 
         for i in range(self.num_iter):
             # 1. Optimize the augmented objective with fixed multipliers to find the next point for multipliers update
@@ -203,7 +204,8 @@ class AlboAcquisitionFactory(object):
             # 4. Write trace of inner-loop optimization for debugging
             x_trace = torch.cat([x_trace, x], dim=0)
             mults_trace = torch.cat([mults_trace, mults.unsqueeze(0)], dim=0)
-            output_trace = torch.cat([output_trace, posterior.mean.squeeze(dim=0)], dim=0)
+            output_means = torch.cat([output_means, posterior.mean.detach().squeeze(dim=0)], dim=0)
+            output_variances = torch.cat([output_variances, posterior.variance.detach().squeeze(dim=0)], dim=0)
 
             # 5. Check stopping condition for inner loop (not implemented)
             continue
@@ -219,7 +221,10 @@ class AlboAcquisitionFactory(object):
         trace = {
             'x': x_trace,
             'mults': mults_trace,
-            'output_mean': output_trace
+            'output': {
+                'mean': output_means,
+                'variance': output_variances
+            }
         }
 
         return albo_objective, trace
