@@ -16,6 +16,9 @@ setup(
     author='Alexey Stysin',
     license='MIT',
     python_requires='>=3.6',
-    install_requires=['botorch>=0.2.0'],
+    install_requires=[
+        'botorch>=0.2.1',
+        'ax>=0.1.9'
+    ],
     packages=find_packages()
 )

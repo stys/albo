@@ -18,13 +18,15 @@ class AlboMCObjective(MCAcquisitionObjective):
     x \in B
     ```
 
-    An Augmented Lagrangian is a scalarized optimization objective, where `phi(t)` are non-linear
-    penalty functions and `lambda_i` are estimates of Lagrange multipliers.
+    An Augmented Lagrangian is a scalarized optimization objective, where `phi(t, \lambda, r)` is a non-linear
+    penalty function and `lambda_i` are the estimates of Lagrange multipliers.
+
     ```
     L(\lambda, x, \pho) = f(x) - \sum_i \phi(c_i(x), \lambda_i, r)`
     ```
 
-    Implementations must define a penalty function and an update rule for multipliers.
+    Implementations should define a specific penalty function and its gradient with respect to constraint,
+    which is used in the update rule of the Lagrange multipliers.
     """
 
     _default_mult = 1.e-8
@@ -36,7 +38,7 @@ class AlboMCObjective(MCAcquisitionObjective):
         penalty_rate: float = 1.0,
         lagrange_mults: Optional[Tensor] = None
     ) -> None:
-        r"""Feasibility-weighted objective.
+        r"""A generic Augmented Lagrangian objective
 
         Args:
             objective: A callable mapping a `sample_shape x batch-shape x q x m`-
