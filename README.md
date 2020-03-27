@@ -21,33 +21,49 @@ conda activate albo
 pip install -e .
 ```
 
-## Example
+## Usage
+
+This package provides alternatives to `ConstrainedMCObjective` for constrained optimization with Ax and
+TorchModelBridge.
+
+Step 1: choose one of available ALBO objectives, i.e. `ClassicAlboMCObjective`
+
 ```
-from torch import Tensor
-from botorch.sampling.samplers import SobolQMCNormalSampler
+from albo.objective import ClassicAlboMCObjective
+```
 
-from albo.acquisition.objective import ClassicAugmentedLagrangianMCObjective
-from albo.optim.optimize import AlboOptimizer
-from albo.test_functions.synthetic import GardnerTestFunction
+Step 2: create an instance `AlboAcquisitionFactory` which implements the inner loop of ALBO algorithm
+and use it to combine ALBO objective with one of the common acquisition functions. Use `qEI` for explorative
+phase of optimization and then use `qSR` for a few steps to drill to the optimal point (usually at the
+border of the constraints).
 
-blackbox = GardnerTestFunction()
-bounds = Tensor(blackbox._bounds)
+```
+from albo.acquisition import AlboAcquisitionFactory
 
-objective = ClassicAugmentedLagrangianMCObjective(
-    objective=lambda y: y[..., 0],
-    constraints=[
-        lambda y: y[..., 1]
-    ],
-    r=100.0
+acqf_constructor = AlboAcquisitionFactory(
+    albo_objective_constructor=ClassicAlboMCObjective,
+    acquisition_function_name=`qEI`,
+    bounds=bounds,
+    init_mults=init_mults,
+    init_penalty_rate=penalty_rate,
+    num_iter=num_iter_inner,
+    num_restarts=1
 )
+```
 
-sampler = SobolQMCNormalSampler(num_samples=1500)
+Step 3: use this instance as a custom acquisition function constructor with TorchModelBridge
+```
+from ax.modelbridge.factory import get_botorch
 
-optimizer = AlboOptimizer(
-    blackbox=blackbox,
-    objective=objective,
-    sampler=sampler,
-    bounds=bounds
+model = get_botorch(
+    experiment=experiment,
+    search_space=search_space,
+    data=exp.fetch_data(),
+    acqf_constructor=acqf_constructor
 )
+```
 
-x_best, y_best, trace = optimizer.optimize(niter=50, init_samples=10, al_iter=10)
+See examples of full optimization loops:
+![Toy problem from Gramacy2016](./examples/gramacy/gramacy_toy_noiseless.ipynb)
+
+

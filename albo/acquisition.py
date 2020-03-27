@@ -120,24 +120,16 @@ class AlboAcquisitionFactory(object):
         self.albo_objective, self.trace_inner = self.fit_albo_objective()
 
         # Create an acquisition function over the fitted AL objective
-        if self.acquisition_function_name == 'qSimpleRegret':
-            return qSimpleRegret(
-                model=model,
-                objective=self.albo_objective,
-                sampler=self.sampler,
-                X_pending=X_pending
-            )
-        else:
-            return get_acquisition_function(
-                acquisition_function_name=self.acquisition_function_name,
-                model=model,
-                objective=self.albo_objective,
-                X_observed=X_observed,
-                X_pending=X_pending,
-                mc_samples=mc_samples,
-                seed=seed,
-                **kwargs
-            )
+        return get_acquisition_function(
+            acquisition_function_name=self.acquisition_function_name,
+            model=model,
+            objective=self.albo_objective,
+            X_observed=X_observed,
+            X_pending=X_pending,
+            mc_samples=mc_samples,
+            seed=seed,
+            **kwargs
+        )
 
     def fit_albo_objective(self) -> AlboMCObjective:
         r"""Inner loop of Augmented Lagrangian algorithm
