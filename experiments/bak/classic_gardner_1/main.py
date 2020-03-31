@@ -16,7 +16,7 @@ from gpytorch.mlls.sum_marginal_log_likelihood import SumMarginalLogLikelihood
 from gpytorch.constraints import GreaterThan
 
 from albo.test_functions.synthetic import GardnerTestFunction
-from albo.acquisition.objective import AugmentedLagrangianMCObjective, ClassicAugmentedLagrangianMCObjective
+from albo._acquisition.objective import AugmentedLagrangianMCObjective, ClassicAugmentedLagrangianMCObjective
 
 
 def generate_initial_data(nsamples=10, noise_std=None, seed=None):

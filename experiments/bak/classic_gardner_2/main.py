@@ -3,7 +3,7 @@
 from torch import Tensor
 from botorch.sampling.samplers import SobolQMCNormalSampler
 
-from albo.acquisition.objective import ClassicAugmentedLagrangianMCObjective
+from albo._acquisition.objective import ClassicAugmentedLagrangianMCObjective
 from albo.optim.optimize import AlboOptimizer
 from albo.test_functions.synthetic import GardnerTestFunction
 
