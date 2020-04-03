@@ -54,12 +54,14 @@ acqf_constructor = AlboAcquisitionFactory(
 Step 3: use this instance as a custom acquisition function constructor with TorchModelBridge
 ```
 from ax.modelbridge.factory import get_botorch
+from ax.models.torch.botorch_defaults import scipy_optimizer
 
 model = get_botorch(
     experiment=experiment,
     search_space=search_space,
     data=exp.fetch_data(),
-    acqf_constructor=acqf_constructor
+    acqf_constructor=acqf_constructor,
+    acqf_optimizer=partial(scipy_optimizer, method="L-BFGS-B")
 )
 ```
 
