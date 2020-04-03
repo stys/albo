@@ -64,6 +64,6 @@ model = get_botorch(
 ```
 
 See examples of full optimization loops:
-![Toy problem from Gramacy2016](./examples/gramacy/gramacy_toy_noiseless.ipynb)
+![Toy problem from Gramacy2016](./experiments/gramacy_toy/gramacy_toy_noiseless.ipynb)
 
 
