@@ -5,10 +5,10 @@ channels:
 dependencies:
     - python=3.7
     - botorch=0.2.1
-    - ax=0.1.9
     - jupyter
     - nb_conda
     - pytest
     - pip
     - pip:
       - pyhocon
+      - ax=0.1.9
