@@ -10,5 +10,4 @@ dependencies:
     - pytest
     - pip
     - pip:
-      - pyhocon
-      - ax=0.1.9
+      - ax==0.1.9
