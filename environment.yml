@@ -10,4 +10,4 @@ dependencies:
     - pytest
     - pip
     - pip:
-      - ax==0.1.9
+      - ax_platform==0.1.9
