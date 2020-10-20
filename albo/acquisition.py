@@ -72,6 +72,8 @@ class AlboAcquisitionFactory(object):
         self.albo_objective = None
         self.trace_inner = None
 
+        self.callbacks = []
+
     def __call__(
         self,
         model: Model,
@@ -131,6 +133,12 @@ class AlboAcquisitionFactory(object):
             **kwargs
         )
 
+    def _execute_callbacks(self, func_name, kwargs):
+        for c in self.callbacks:
+            func = getattr(c, func_name)
+            if func is not None:
+                func(self, kwargs)
+
     def fit_albo_objective(self) -> AlboMCObjective:
         r"""Inner loop of Augmented Lagrangian algorithm
 
@@ -161,6 +169,8 @@ class AlboAcquisitionFactory(object):
         output_variances = torch.zeros((1, self.model.num_outputs), dtype=float)
 
         for i in range(self.num_iter):
+            self._execute_callbacks("on_iter_start", locals())
+
             # 1. Optimize the augmented objective with fixed multipliers to find the next point for multipliers update
             albo_objective = self.albo_objective_constructor(
                 objective=objective_callable,
@@ -200,6 +210,7 @@ class AlboAcquisitionFactory(object):
             output_variances = torch.cat([output_variances, posterior.variance.detach().squeeze(dim=0)], dim=0)
 
             # 5. Check stopping condition for inner loop (not implemented)
+            self._execute_callbacks("on_iter_end", locals())
             continue
 
         # Construct final objective
